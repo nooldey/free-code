@@ -6,6 +6,7 @@
  * during dead code elimination
  */
 import { getMainLoopModelOverride } from '../../bootstrap/state.js'
+import { stripOpenCodeModelPrefix } from '../../services/api/opencode-fetch-adapter.js'
 import {
   getSubscriptionType,
   isClaudeAISubscriber,
@@ -123,6 +124,9 @@ export function getDefaultSonnetModel(): ModelName {
   if (process.env.ANTHROPIC_DEFAULT_SONNET_MODEL) {
     return process.env.ANTHROPIC_DEFAULT_SONNET_MODEL
   }
+  if (getAPIProvider() === 'opencode') {
+    return getModelStrings().sonnet46
+  }
   // Default to Sonnet 4.5 for 3P since they may not have 4.6 yet
   if (getAPIProvider() !== 'firstParty') {
     return getModelStrings().sonnet45
@@ -222,7 +226,7 @@ export function getDefaultMainLoopModel(): ModelName {
  * module top-level (see MODEL_COSTS in modelCost.ts).
  */
 export function firstPartyNameToCanonical(name: ModelName): ModelShortName {
-  name = name.toLowerCase()
+  name = stripOpenCodeModelPrefix(name).toLowerCase()
   // Special cases for Claude 4+ models to differentiate versions
   // Order matters: check more specific versions first (4-5 before 4)
   if (name.includes('claude-opus-4-6')) {
@@ -367,53 +371,79 @@ export function renderModelSetting(setting: ModelName | ModelAlias): string {
  * if the model is not recognized as a public model.
  */
 export function getPublicModelDisplayName(model: ModelName): string | null {
-  if (model.includes('gpt-') || model.includes('codex')) {
-    if (model === 'gpt-5.2-codex') return 'Codex 5.2'
-    if (model === 'gpt-5.1-codex') return 'Codex 5.1'
-    if (model === 'gpt-5.1-codex-mini') return 'Codex 5.1 Mini'
-    if (model === 'gpt-5.1-codex-max') return 'Codex 5.1 Max'
-    if (model === 'gpt-5.4') return 'GPT 5.4'
-    if (model === 'gpt-5.2') return 'GPT 5.2'
-    return model
+  const prefix =
+    model.startsWith('opencode-go/')
+      ? ' (OpenCode Go)'
+      : model.startsWith('opencode/')
+        ? ' (OpenCode Zen)'
+        : ''
+
+  const normalizedModel = stripOpenCodeModelPrefix(model)
+
+  if (normalizedModel.includes('gpt-') || normalizedModel.includes('codex')) {
+    if (normalizedModel === 'gpt-5.2-codex') return `Codex 5.2${prefix}`
+    if (normalizedModel === 'gpt-5.1-codex') return `Codex 5.1${prefix}`
+    if (normalizedModel === 'gpt-5.1-codex-mini') {
+      return `Codex 5.1 Mini${prefix}`
+    }
+    if (normalizedModel === 'gpt-5.1-codex-max') {
+      return `Codex 5.1 Max${prefix}`
+    }
+    if (normalizedModel === 'gpt-5.4') return `GPT 5.4${prefix}`
+    if (normalizedModel === 'gpt-5.2') return `GPT 5.2${prefix}`
+    return `${normalizedModel}${prefix}`
   }
 
-  switch (model) {
+  if (normalizedModel === 'kimi-k2.5') return `Kimi K2.5${prefix}`
+  if (normalizedModel === 'glm-5.1') return `GLM-5.1${prefix}`
+  if (normalizedModel === 'glm-5') return `GLM-5${prefix}`
+  if (normalizedModel === 'minimax-m2.7') return `MiniMax M2.7${prefix}`
+  if (normalizedModel === 'minimax-m2.5') return `MiniMax M2.5${prefix}`
+  if (normalizedModel === 'mimo-v2-pro') return `MiMo V2 Pro${prefix}`
+  if (normalizedModel === 'mimo-v2-omni') return `MiMo V2 Omni${prefix}`
+
+  if (prefix) {
+    const known = getPublicModelDisplayName(normalizedModel)
+    return known ? `${known}${prefix}` : `${normalizedModel}${prefix}`
+  }
+
+  switch (normalizedModel) {
     case getModelStrings().opus46:
-      return 'Opus 4.6'
+      return `Opus 4.6${prefix}`
     case getModelStrings().opus46 + '[1m]':
-      return 'Opus 4.6 (1M context)'
+      return `Opus 4.6 (1M context)${prefix}`
     case getModelStrings().opus45:
-      return 'Opus 4.5'
+      return `Opus 4.5${prefix}`
     case getModelStrings().opus41:
-      return 'Opus 4.1'
+      return `Opus 4.1${prefix}`
     case getModelStrings().opus40:
-      return 'Opus 4'
+      return `Opus 4${prefix}`
     case getModelStrings().sonnet46 + '[1m]':
-      return 'Sonnet 4.6 (1M context)'
+      return `Sonnet 4.6 (1M context)${prefix}`
     case getModelStrings().sonnet46:
-      return 'Sonnet 4.6'
+      return `Sonnet 4.6${prefix}`
     case getModelStrings().sonnet45 + '[1m]':
-      return 'Sonnet 4.5 (1M context)'
+      return `Sonnet 4.5 (1M context)${prefix}`
     case getModelStrings().sonnet45:
-      return 'Sonnet 4.5'
+      return `Sonnet 4.5${prefix}`
     case getModelStrings().sonnet40:
-      return 'Sonnet 4'
+      return `Sonnet 4${prefix}`
     case getModelStrings().sonnet40 + '[1m]':
-      return 'Sonnet 4 (1M context)'
+      return `Sonnet 4 (1M context)${prefix}`
     case getModelStrings().sonnet37:
-      return 'Sonnet 3.7'
+      return `Sonnet 3.7${prefix}`
     case getModelStrings().sonnet35:
-      return 'Sonnet 3.5'
+      return `Sonnet 3.5${prefix}`
     case getModelStrings().haiku45:
-      return 'Haiku 4.5'
+      return `Haiku 4.5${prefix}`
     case getModelStrings().haiku35:
-      return 'Haiku 3.5'
+      return `Haiku 3.5${prefix}`
     case getModelStrings().gpt54:
-      return 'GPT-5.4'
+      return `GPT-5.4${prefix}`
     case getModelStrings().gpt53codex:
-      return 'GPT-5.3 Codex'
+      return `GPT-5.3 Codex${prefix}`
     case getModelStrings().gpt54mini:
-      return 'GPT-5.4 Mini'
+      return `GPT-5.4 Mini${prefix}`
     default:
       return null
   }
@@ -657,6 +687,27 @@ export function getMarketingNameForModel(modelId: string): string | undefined {
   }
   if (canonical.includes('gpt-5.3-codex')) {
     return 'GPT-5.3 Codex'
+  }
+  if (canonical === 'kimi-k2.5') {
+    return 'Kimi K2.5'
+  }
+  if (canonical === 'glm-5.1') {
+    return 'GLM-5.1'
+  }
+  if (canonical === 'glm-5') {
+    return 'GLM-5'
+  }
+  if (canonical === 'minimax-m2.7') {
+    return 'MiniMax M2.7'
+  }
+  if (canonical === 'minimax-m2.5') {
+    return 'MiniMax M2.5'
+  }
+  if (canonical === 'mimo-v2-pro') {
+    return 'MiMo V2 Pro'
+  }
+  if (canonical === 'mimo-v2-omni') {
+    return 'MiMo V2 Omni'
   }
 
   return undefined

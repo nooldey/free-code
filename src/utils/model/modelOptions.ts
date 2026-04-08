@@ -1,6 +1,12 @@
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
 import { getInitialMainLoopModel } from '../../bootstrap/state.js'
 import {
+  getOpenCodeGoModelCatalog,
+  getOpenCodeZenModelCatalog,
+  isOpenCodeZenFreeModel,
+  type OpenCodeModelDefinition,
+} from '../../services/api/opencode-models.js'
+import {
   isClaudeAISubscriber,
   isCodexSubscriber,
   isMaxSubscriber,
@@ -237,6 +243,58 @@ function getGpt54MiniOption(): ModelOption {
   }
 }
 
+/**
+ * 返回模型选择器里展示的 OpenCode Go 模型选项。
+ */
+function getOpenCodeGoOptions(): ModelOption[] {
+  return getOpenCodeGoModelCatalog().map(model =>
+    buildOpenCodeOption('go', model),
+  )
+}
+
+/**
+ * 返回模型选择器里展示的 OpenCode Zen 免费/手动模型选项。
+ */
+function getOpenCodeZenOptions(): ModelOption[] {
+  const curatedIds = new Set([
+    'claude-opus-4-6',
+    'claude-sonnet-4-6',
+    'claude-haiku-4-5',
+    'gpt-5.4',
+    'gpt-5.3-codex',
+    'gpt-5.4-mini',
+  ])
+
+  return getOpenCodeZenModelCatalog()
+    .filter(model => !curatedIds.has(model.id))
+    .map(model => buildOpenCodeOption('zen', model))
+}
+
+/**
+ * 把 OpenCode 目录项转换为模型选择器选项。
+ */
+function buildOpenCodeOption(
+  plan: 'go' | 'zen',
+  model: OpenCodeModelDefinition,
+): ModelOption {
+  const prefix = plan === 'go' ? 'opencode-go/' : 'opencode/'
+  const fallbackDescription =
+    plan === 'go'
+      ? 'OpenCode Go · User-configurable model'
+      : isOpenCodeZenFreeModel(model.id)
+        ? 'OpenCode Zen · Free model'
+        : 'OpenCode Zen · User-configurable model'
+
+  return {
+    value: `${prefix}${model.id}`,
+    label: model.name || getMarketingNameForModel(model.id) || model.id,
+    description: model.description || fallbackDescription,
+    descriptionForModel:
+      model.description ||
+      `${plan === 'go' ? 'OpenCode Go' : 'OpenCode Zen'} model routed to ${model.id}`,
+  }
+}
+
 function getMaxOpusOption(fastMode = false): ModelOption {
   return {
     value: 'opus',
@@ -313,6 +371,20 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
       getSonnet46Option(),
       getSonnet46_1MOption(),
       getHaiku45Option(),
+    ]
+  }
+
+  if (getAPIProvider() === 'opencode') {
+    return [
+      getDefaultOptionForUser(fastMode),
+      getSonnet46Option(),
+      getOpus46Option(fastMode),
+      getHaiku45Option(),
+      getGpt54Option(),
+      getGpt53CodexOption(),
+      getGpt54MiniOption(),
+      ...getOpenCodeZenOptions(),
+      ...getOpenCodeGoOptions(),
     ]
   }
 
@@ -515,8 +587,13 @@ export function getModelOptions(fastMode = false): ModelOption[] {
     })
   }
 
+  const supplementalOptions =
+    getAPIProvider() === 'opencode'
+      ? []
+      : (getGlobalConfig().additionalModelOptionsCache ?? [])
+
   // Append additional model options fetched during bootstrap
-  for (const opt of getGlobalConfig().additionalModelOptionsCache ?? []) {
+  for (const opt of supplementalOptions) {
     if (!options.some(existing => existing.value === opt.value)) {
       options.push(opt)
     }

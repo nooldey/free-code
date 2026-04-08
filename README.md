@@ -34,12 +34,15 @@ If Bun is missing (or below the minimum version), the installer will ask for con
 
 Then run `freecode` and use the `/login` command to authenticate with your preferred model provider.
 
+`freecode.json` lives at the free-code install root and acts as a free-code-specific user config overlay. It is intended for behavior-affecting personal settings such as provider env vars, not for legacy runtime state like project history or session counters.
+
 ---
 
 ## Table of Contents
 
 - [What is this](#what-is-this)
 - [Model Providers](#model-providers)
+- [OpenCode Config](OPENCODE.md)
 - [Quick Install](#quick-install)
 - [Requirements](#requirements)
 - [Build](#build)
@@ -81,7 +84,7 @@ Claude Code ships with 88 feature flags gated behind `bun:bundle` compile-time s
 
 ## Model Providers
 
-free-code supports **five API providers** out of the box. Set the corresponding environment variable to switch providers -- no code changes needed.
+free-code supports **six API providers** out of the box. Set the corresponding environment variable to switch providers -- no code changes needed.
 
 ### Anthropic (Direct API) -- Default
 
@@ -107,6 +110,33 @@ Use OpenAI's Codex models for code generation. Requires a Codex subscription.
 export CLAUDE_CODE_USE_OPENAI=1
 freecode
 ```
+
+### OpenCode Zen / Go
+
+Route requests through OpenCode's hosted model gateway. This provider follows the project's existing Anthropic/OpenAI integration style while adding automatic routing between the Zen and Go plans.
+
+For a dedicated configuration guide, see [OPENCODE.md](OPENCODE.md).
+
+| Model Family | Example IDs | Route |
+|---|---|---|
+| Claude | `claude-sonnet-4-6`, `claude-opus-4-6` | OpenCode Zen `/messages` |
+| GPT / Codex | `gpt-5.4`, `gpt-5.3-codex` | OpenCode Zen `/responses` |
+| Go plan models | `opencode-go/kimi-k2.5`, `opencode-go/glm-5.1`, `opencode-go/mimo-v2-pro` | OpenCode Go |
+
+```bash
+export CLAUDE_CODE_USE_OPENCODE=1
+export OPENCODE_API_KEY="..."
+freecode
+```
+
+You can also place these provider env vars under the `env` field in `freecode.json`.
+
+OpenCode-specific details are documented in [OPENCODE.md](OPENCODE.md):
+
+- `freecode.json` vs `.claude/settings*.json` 的配置分工
+- Zen 免费模型动态加载规则
+- Go 模型与手动补充模型的配置方式
+- `opencodeModels` 格式与默认模型配置示例
 
 ### AWS Bedrock
 
@@ -157,6 +187,7 @@ Supports custom deployment IDs as model names.
 |---|---|---|
 | Anthropic (default) | -- | `ANTHROPIC_API_KEY` or OAuth |
 | OpenAI Codex | `CLAUDE_CODE_USE_OPENAI=1` | OAuth via OpenAI |
+| OpenCode Zen / Go | `CLAUDE_CODE_USE_OPENCODE=1` | `OPENCODE_API_KEY` |
 | AWS Bedrock | `CLAUDE_CODE_USE_BEDROCK=1` | AWS credentials |
 | Google Vertex AI | `CLAUDE_CODE_USE_VERTEX=1` | `gcloud` ADC |
 | Anthropic Foundry | `CLAUDE_CODE_USE_FOUNDRY=1` | `ANTHROPIC_FOUNDRY_API_KEY` |
@@ -240,6 +271,11 @@ bun run dev
 | `ANTHROPIC_DEFAULT_HAIKU_MODEL` | Custom Haiku model ID |
 | `CLAUDE_CODE_OAUTH_TOKEN` | OAuth token via env |
 | `CLAUDE_CODE_API_KEY_HELPER_TTL_MS` | API key helper cache TTL |
+| `CLAUDE_CODE_USE_OPENAI` | Enable OpenAI Codex provider |
+| `CLAUDE_CODE_USE_OPENCODE` | Enable OpenCode provider |
+| `OPENCODE_API_KEY` | OpenCode API key |
+| `OPENCODE_BASE_URL` | Custom OpenCode Zen endpoint |
+| `OPENCODE_GO_BASE_URL` | Custom OpenCode Go endpoint |
 
 ---
 
@@ -328,7 +364,7 @@ src/
 | **Schema Validation** | Zod v4 |
 | **Code Search** | ripgrep (bundled) |
 | **Protocols** | MCP, LSP |
-| **APIs** | Anthropic Messages, OpenAI Codex, AWS Bedrock, Google Vertex AI |
+| **APIs** | Anthropic Messages, OpenAI Codex, OpenCode Zen/Go, AWS Bedrock, Google Vertex AI |
 
 ---
 

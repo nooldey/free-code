@@ -36,6 +36,7 @@ import { launchRepl } from './replLauncher.js';
 import { hasGrowthBookEnvOverride, initializeGrowthBook, refreshGrowthBookAfterAuthChange } from './services/analytics/growthbook.js';
 import { fetchBootstrapData } from './services/api/bootstrap.js';
 import { type DownloadResult, downloadSessionFiles, type FilesApiConfig, parseFileSpecs } from './services/api/filesApi.js';
+import { prefetchOpenCodeZenModelCatalog } from './services/api/opencode-models.js';
 import { prefetchPassesEligibility } from './services/api/referral.js';
 import { prefetchOfficialMcpUrls } from './services/mcp/officialRegistry.js';
 import type { McpSdkServerConfig, McpServerConfig, ScopedMcpServerConfig } from './services/mcp/types.js';
@@ -2351,6 +2352,7 @@ async function run(): Promise<CommanderCommand> {
 
       // Fetch bootstrap data from the server and update all cache values.
       void fetchBootstrapData();
+      void prefetchOpenCodeZenModelCatalog();
 
       // TODO: Consolidate other prefetches into a single bootstrap request.
       void prefetchPassesEligibility();

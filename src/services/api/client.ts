@@ -36,6 +36,7 @@ import {
   isEnvTruthy,
 } from '../../utils/envUtils.js'
 import { createCodexFetch } from './codex-fetch-adapter.js'
+import { createOpenCodeFetch } from './opencode-fetch-adapter.js'
 
 /**
  * Environment variables for different client types:
@@ -303,6 +304,23 @@ export async function getAnthropicClient({
     }
     // we have always been lying about the return type - this doesn't support batching or models
     return new AnthropicVertex(vertexArgs) as unknown as Anthropic
+  }
+
+  if (getAPIProvider() === 'opencode') {
+    const apiKey = process.env.OPENCODE_API_KEY
+    if (!apiKey) {
+      throw new Error(
+        '使用 OpenCode provider 时必须设置 OPENCODE_API_KEY',
+      )
+    }
+    const opencodeFetch = createOpenCodeFetch(apiKey)
+    const clientConfig: ConstructorParameters<typeof Anthropic>[0] = {
+      apiKey: 'opencode-placeholder',
+      ...ARGS,
+      fetch: opencodeFetch as unknown as typeof globalThis.fetch,
+      ...(isDebugToStdErr() && { logger: createStderrLogger() }),
+    }
+    return new Anthropic(clientConfig)
   }
 
   // ── Codex (OpenAI) provider via fetch adapter ─────────────────────
