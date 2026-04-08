@@ -26,6 +26,7 @@ import { buildSubagentLookups, createAssistantMessage, EMPTY_LOOKUPS } from '../
 import type { ModelAlias } from '../../utils/model/aliases.js';
 import { getMainLoopModel, parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js';
 import type { Theme, ThemeName } from '../../utils/theme.js';
+import { getTokenCountFromUsage } from '../../utils/tokens.js';
 import type { outputSchema, Progress, RemoteLaunchedOutput } from './AgentTool.js';
 import { inputSchema } from './AgentTool.js';
 import { getAgentColor } from './agentColorManager.js';
@@ -479,8 +480,7 @@ export function renderToolUseProgressMessage(progressMessages: ProgressMessage<P
     const latestAssistant = progressMessages.findLast((msg): msg is ProgressMessage<AgentToolProgress> => hasProgressMessage(msg.data) && msg.data.message.type === 'assistant');
     let tokens = null;
     if (latestAssistant?.data.message.type === 'assistant') {
-      const usage = latestAssistant.data.message.message.usage;
-      tokens = (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) + usage.input_tokens + usage.output_tokens;
+      tokens = getTokenCountFromUsage(latestAssistant.data.message.message.usage);
     }
     return {
       toolUseCount,
@@ -638,8 +638,7 @@ function calculateAgentStats(progressMessages: ProgressMessage<Progress>[]): {
   const latestAssistant = progressMessages.findLast((msg): msg is ProgressMessage<AgentToolProgress> => hasProgressMessage(msg.data) && msg.data.message.type === 'assistant');
   let tokens = null;
   if (latestAssistant?.data.message.type === 'assistant') {
-    const usage = latestAssistant.data.message.message.usage;
-    tokens = (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) + usage.input_tokens + usage.output_tokens;
+    tokens = getTokenCountFromUsage(latestAssistant.data.message.message.usage);
   }
   return {
     toolUseCount,

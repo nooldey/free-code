@@ -12,6 +12,7 @@ import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
 } from '../../services/analytics/index.js'
+import { EMPTY_USAGE } from '../../services/api/logging.js'
 import { clearDumpState } from '../../services/api/dumpPrompts.js'
 import type { AppState } from '../../state/AppState.js'
 import type {
@@ -352,7 +353,7 @@ export function finalizeAgentTool(
     totalDurationMs: Date.now() - startTime,
     totalTokens,
     totalToolUseCount,
-    usage: lastAssistantMessage.message.usage,
+    usage: lastAssistantMessage.message.usage ?? { ...EMPTY_USAGE },
   }
 }
 

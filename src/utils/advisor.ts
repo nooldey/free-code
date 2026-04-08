@@ -112,19 +112,29 @@ export function getInitialAdvisorSetting(): string | undefined {
   return getInitialSettings().advisorModel
 }
 
+/**
+ * 判断某个 iteration 是否是带完整 token 字段的 advisor 计费项。
+ */
+function isAdvisorUsageIteration(
+  iteration: unknown,
+): iteration is BetaUsage & { model: string; type: string } {
+  return (
+    !!iteration &&
+    typeof iteration === 'object' &&
+    (iteration as { type?: unknown }).type === 'advisor_message' &&
+    typeof (iteration as { model?: unknown }).model === 'string' &&
+    typeof (iteration as { input_tokens?: unknown }).input_tokens === 'number' &&
+    typeof (iteration as { output_tokens?: unknown }).output_tokens === 'number'
+  )
+}
+
 export function getAdvisorUsage(
   usage: BetaUsage,
 ): Array<BetaUsage & { model: string }> {
-  const iterations = usage.iterations as
-    | Array<{ type: string }>
-    | null
-    | undefined
-  if (!iterations) {
+  if (!Array.isArray(usage.iterations)) {
     return []
   }
-  return iterations.filter(
-    it => it.type === 'advisor_message',
-  ) as unknown as Array<BetaUsage & { model: string }>
+  return usage.iterations.filter(isAdvisorUsageIteration)
 }
 
 export const ADVISOR_TOOL_INSTRUCTIONS = `# Advisor Tool

@@ -13,6 +13,7 @@ import {
 import { generateTaskId } from '../Task.js'
 import { pwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
+import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { errorMessage, isENOENT } from './errors.js'
 import { getFsImplementation } from './fsOperations.js'
 import { logError } from './log.js'
@@ -277,6 +278,8 @@ export async function exec(
     ? ['-c', commandString]
     : provider.getSpawnArgs(commandString)
   const envOverrides = await provider.getEnvironmentOverrides(command)
+  const isGitCommand = /(^|\s)git(\s|$)/.test(command)
+  const commandStartTime = Date.now()
 
   // When onStdout is provided, use pipe mode: stdout flows through
   // StreamWrapper → TaskOutput in-memory buffer instead of a file fd.
@@ -313,11 +316,21 @@ export async function exec(
   }
 
   try {
+    logForDiagnosticsNoPII('info', 'shell_command_spawn_started', {
+      shell_type: shellType,
+      is_git: isGitCommand,
+      timeout_ms: commandTimeout,
+      sandboxed: shouldUseSandbox ?? false,
+      auto_background: shouldAutoBackground ?? false,
+      pipe_mode: usePipeMode,
+    })
+
     const childProcess = spawn(spawnBinary, shellArgs, {
       env: {
         ...subprocessEnv(),
         SHELL: shellType === 'bash' ? binShell : undefined,
         GIT_EDITOR: 'true',
+        GIT_PAGER: 'cat',
         CLAUDECODE: '1',
         ...envOverrides,
         ...(process.env.USER_TYPE === 'ant'
@@ -334,6 +347,55 @@ export async function exec(
       detached: provider.detached,
       // Prevent visible console window on Windows (no-op on other platforms)
       windowsHide: true,
+    })
+    logForDiagnosticsNoPII('info', 'shell_command_spawned', {
+      shell_type: shellType,
+      is_git: isGitCommand,
+      pid: childProcess.pid ?? null,
+    })
+
+    let diagnosticsSettled = false
+    const diagnosticsHeartbeat = setInterval(() => {
+      if (diagnosticsSettled) {
+        return
+      }
+      logForDiagnosticsNoPII('warn', 'shell_command_still_running', {
+        shell_type: shellType,
+        is_git: isGitCommand,
+        pid: childProcess.pid ?? null,
+        elapsed_ms: Date.now() - commandStartTime,
+      })
+    }, 15_000)
+    diagnosticsHeartbeat.unref()
+
+    childProcess.once('exit', (code, signal) => {
+      if (diagnosticsSettled) {
+        return
+      }
+      diagnosticsSettled = true
+      clearInterval(diagnosticsHeartbeat)
+      logForDiagnosticsNoPII('info', 'shell_command_exit', {
+        shell_type: shellType,
+        is_git: isGitCommand,
+        pid: childProcess.pid ?? null,
+        code: code ?? null,
+        signal: signal ?? null,
+        duration_ms: Date.now() - commandStartTime,
+      })
+    })
+    childProcess.once('error', err => {
+      if (diagnosticsSettled) {
+        return
+      }
+      diagnosticsSettled = true
+      clearInterval(diagnosticsHeartbeat)
+      logForDiagnosticsNoPII('error', 'shell_command_error', {
+        shell_type: shellType,
+        is_git: isGitCommand,
+        pid: childProcess.pid ?? null,
+        duration_ms: Date.now() - commandStartTime,
+        error_type: err.name,
+      })
     })
 
     const shellCommand = wrapSpawn(
@@ -422,6 +484,16 @@ export async function exec(
 
     return shellCommand
   } catch (error) {
+    logForDiagnosticsNoPII('error', 'shell_command_spawn_failed', {
+      shell_type: shellType,
+      is_git: isGitCommand,
+      timeout_ms: commandTimeout,
+      sandboxed: shouldUseSandbox ?? false,
+      auto_background: shouldAutoBackground ?? false,
+      pipe_mode: usePipeMode,
+      duration_ms: Date.now() - commandStartTime,
+      error_type: error instanceof Error ? error.name : typeof error,
+    })
     // Close the fd if spawn failed (child never got its dup)
     if (outputHandle !== undefined) {
       try {

@@ -87,6 +87,12 @@ export const COST_HAIKU_45 = {
 } as const satisfies ModelCosts
 
 const DEFAULT_UNKNOWN_MODEL_COST = COST_TIER_5_25
+const ZERO_USAGE: Usage = {
+  input_tokens: 0,
+  output_tokens: 0,
+  cache_read_input_tokens: 0,
+  cache_creation_input_tokens: 0,
+} as Usage
 
 /**
  * Get the cost tier for Opus 4.6 based on fast mode.
@@ -128,27 +134,28 @@ export const MODEL_COSTS: Record<ModelShortName, ModelCosts> = {
 /**
  * Calculates the USD cost based on token usage and model cost configuration
  */
-function tokensToUSDCost(modelCosts: ModelCosts, usage: Usage): number {
+function tokensToUSDCost(modelCosts: ModelCosts, usage: Usage | undefined): number {
+  const safeUsage = usage ?? ZERO_USAGE
   return (
-    (usage.input_tokens / 1_000_000) * modelCosts.inputTokens +
-    (usage.output_tokens / 1_000_000) * modelCosts.outputTokens +
-    ((usage.cache_read_input_tokens ?? 0) / 1_000_000) *
+    (safeUsage.input_tokens / 1_000_000) * modelCosts.inputTokens +
+    (safeUsage.output_tokens / 1_000_000) * modelCosts.outputTokens +
+    ((safeUsage.cache_read_input_tokens ?? 0) / 1_000_000) *
       modelCosts.promptCacheReadTokens +
-    ((usage.cache_creation_input_tokens ?? 0) / 1_000_000) *
+    ((safeUsage.cache_creation_input_tokens ?? 0) / 1_000_000) *
       modelCosts.promptCacheWriteTokens +
-    (usage.server_tool_use?.web_search_requests ?? 0) *
+    (safeUsage.server_tool_use?.web_search_requests ?? 0) *
       modelCosts.webSearchRequests
   )
 }
 
-export function getModelCosts(model: string, usage: Usage): ModelCosts {
+export function getModelCosts(model: string, usage: Usage | undefined): ModelCosts {
   const shortName = getCanonicalName(model)
 
   // Check if this is an Opus 4.6 model with fast mode active.
   if (
     shortName === firstPartyNameToCanonical(CLAUDE_OPUS_4_6_CONFIG.firstParty)
   ) {
-    const isFastMode = usage.speed === 'fast'
+    const isFastMode = usage?.speed === 'fast'
     return getOpus46CostTier(isFastMode)
   }
 
@@ -174,7 +181,10 @@ function trackUnknownModelCost(model: string, shortName: ModelShortName): void {
 
 // Calculate the cost of a query in US dollars.
 // If the model's costs are not found, use the default model's costs.
-export function calculateUSDCost(resolvedModel: string, usage: Usage): number {
+export function calculateUSDCost(
+  resolvedModel: string,
+  usage: Usage | undefined,
+): number {
   const modelCosts = getModelCosts(resolvedModel, usage)
   return tokensToUSDCost(modelCosts, usage)
 }

@@ -32,6 +32,7 @@ import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
 } from './services/analytics/index.js'
+import { EMPTY_USAGE } from './services/api/logging.js'
 import { getAdvisorUsage } from './utils/advisor.js'
 import {
   getCurrentProjectConfig,
@@ -249,9 +250,10 @@ function round(number: number, precision: number): number {
 
 function addToTotalModelUsage(
   cost: number,
-  usage: Usage,
+  usage: Usage | undefined,
   model: string,
 ): ModelUsage {
+  const safeUsage = usage ?? EMPTY_USAGE
   const modelUsage = getUsageForModel(model) ?? {
     inputTokens: 0,
     outputTokens: 0,
@@ -263,12 +265,13 @@ function addToTotalModelUsage(
     maxOutputTokens: 0,
   }
 
-  modelUsage.inputTokens += usage.input_tokens
-  modelUsage.outputTokens += usage.output_tokens
-  modelUsage.cacheReadInputTokens += usage.cache_read_input_tokens ?? 0
-  modelUsage.cacheCreationInputTokens += usage.cache_creation_input_tokens ?? 0
+  modelUsage.inputTokens += safeUsage.input_tokens
+  modelUsage.outputTokens += safeUsage.output_tokens
+  modelUsage.cacheReadInputTokens += safeUsage.cache_read_input_tokens ?? 0
+  modelUsage.cacheCreationInputTokens +=
+    safeUsage.cache_creation_input_tokens ?? 0
   modelUsage.webSearchRequests +=
-    usage.server_tool_use?.web_search_requests ?? 0
+    safeUsage.server_tool_use?.web_search_requests ?? 0
   modelUsage.costUSD += cost
   modelUsage.contextWindow = getContextWindowForModel(model, getSdkBetas())
   modelUsage.maxOutputTokens = getModelMaxOutputTokens(model).default
@@ -277,31 +280,32 @@ function addToTotalModelUsage(
 
 export function addToTotalSessionCost(
   cost: number,
-  usage: Usage,
+  usage: Usage | undefined,
   model: string,
 ): number {
+  const safeUsage = usage ?? EMPTY_USAGE
   const modelUsage = addToTotalModelUsage(cost, usage, model)
   addToTotalCostState(cost, modelUsage, model)
 
   const attrs =
-    isFastModeEnabled() && usage.speed === 'fast'
+    isFastModeEnabled() && safeUsage.speed === 'fast'
       ? { model, speed: 'fast' }
       : { model }
 
   getCostCounter()?.add(cost, attrs)
-  getTokenCounter()?.add(usage.input_tokens, { ...attrs, type: 'input' })
-  getTokenCounter()?.add(usage.output_tokens, { ...attrs, type: 'output' })
-  getTokenCounter()?.add(usage.cache_read_input_tokens ?? 0, {
+  getTokenCounter()?.add(safeUsage.input_tokens, { ...attrs, type: 'input' })
+  getTokenCounter()?.add(safeUsage.output_tokens, { ...attrs, type: 'output' })
+  getTokenCounter()?.add(safeUsage.cache_read_input_tokens ?? 0, {
     ...attrs,
     type: 'cacheRead',
   })
-  getTokenCounter()?.add(usage.cache_creation_input_tokens ?? 0, {
+  getTokenCounter()?.add(safeUsage.cache_creation_input_tokens ?? 0, {
     ...attrs,
     type: 'cacheCreation',
   })
 
   let totalCost = cost
-  for (const advisorUsage of getAdvisorUsage(usage)) {
+  for (const advisorUsage of getAdvisorUsage(safeUsage)) {
     const advisorCost = calculateUSDCost(advisorUsage.model, advisorUsage)
     logEvent('tengu_advisor_tool_token_usage', {
       advisor_model:

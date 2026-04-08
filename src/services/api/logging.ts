@@ -426,7 +426,7 @@ function logAPISuccess({
   preNormalizedModel: string
   messageCount: number
   messageTokens: number
-  usage: Usage
+  usage: Usage | undefined
   durationMs: number
   durationMsIncludingRetries: number
   attempt: number
@@ -448,6 +448,7 @@ function logAPISuccess({
   previousRequestId?: string | null
   betas?: string[]
 }): void {
+  const safeUsage = usage ?? EMPTY_USAGE
   const isNonInteractiveSession = getIsNonInteractiveSession()
   const isPostCompaction = consumePostCompaction()
   const hasPrintFlag =
@@ -477,10 +478,10 @@ function logAPISuccess({
       : {}),
     messageCount,
     messageTokens,
-    inputTokens: usage.input_tokens,
-    outputTokens: usage.output_tokens,
-    cachedInputTokens: usage.cache_read_input_tokens ?? 0,
-    uncachedInputTokens: usage.cache_creation_input_tokens ?? 0,
+    inputTokens: safeUsage.input_tokens,
+    outputTokens: safeUsage.output_tokens,
+    cachedInputTokens: safeUsage.cache_read_input_tokens ?? 0,
+    uncachedInputTokens: safeUsage.cache_creation_input_tokens ?? 0,
     durationMs: durationMs,
     durationMsIncludingRetries: durationMsIncludingRetries,
     attempt: attempt,
@@ -715,12 +716,13 @@ export function logAPISuccessAndDuration({
     betas,
   })
   // Log API request event for OTLP
+  const safeUsage = usage ?? EMPTY_USAGE
   void logOTelEvent('api_request', {
     model,
-    input_tokens: String(usage.input_tokens),
-    output_tokens: String(usage.output_tokens),
-    cache_read_tokens: String(usage.cache_read_input_tokens),
-    cache_creation_tokens: String(usage.cache_creation_input_tokens),
+    input_tokens: String(safeUsage.input_tokens),
+    output_tokens: String(safeUsage.output_tokens),
+    cache_read_tokens: String(safeUsage.cache_read_input_tokens),
+    cache_creation_tokens: String(safeUsage.cache_creation_input_tokens),
     cost_usd: String(costUSD),
     duration_ms: String(durationMs),
     speed: fastMode ? 'fast' : 'normal',
@@ -763,10 +765,10 @@ export function logAPISuccessAndDuration({
   // Pass the span to correctly match responses to requests when beta tracing is enabled
   endLLMRequestSpan(llmSpan, {
     success: true,
-    inputTokens: usage.input_tokens,
-    outputTokens: usage.output_tokens,
-    cacheReadTokens: usage.cache_read_input_tokens,
-    cacheCreationTokens: usage.cache_creation_input_tokens,
+    inputTokens: safeUsage.input_tokens,
+    outputTokens: safeUsage.output_tokens,
+    cacheReadTokens: safeUsage.cache_read_input_tokens,
+    cacheCreationTokens: safeUsage.cache_creation_input_tokens,
     attempt,
     modelOutput,
     thinkingOutput,

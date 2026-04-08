@@ -168,6 +168,9 @@ function addCachedCostToTotalSessionCost(
   }
   const model = message.message.model
   const usage = message.message.usage
+  if (!usage) {
+    return
+  }
   const costUSD = calculateUSDCost(model, usage)
   addToTotalSessionCost(costUSD, usage, model)
 }

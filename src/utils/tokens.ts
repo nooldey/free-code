@@ -43,7 +43,12 @@ function getAssistantMessageId(message: Message): string | undefined {
  * This represents the full context size at the time of that API call.
  * Use tokenCountWithEstimation() when you need context size from messages.
  */
-export function getTokenCountFromUsage(usage: Usage): number {
+export function getTokenCountFromUsage(
+  usage: Usage | null | undefined,
+): number {
+  if (!usage) {
+    return 0
+  }
   return (
     usage.input_tokens +
     (usage.cache_creation_input_tokens ?? 0) +
@@ -66,6 +71,47 @@ export function tokenCountFromLastAPIResponse(messages: Message[]): number {
 }
 
 /**
+ * 从 usage.iterations 中提取最后一个带完整 token 计数的迭代项。
+ */
+function getLastUsageIterationWithTokens(usage: Usage): {
+  input_tokens: number
+  output_tokens: number
+} | null {
+  const iterations = (
+    usage as {
+      iterations?: Array<
+        | {
+            input_tokens?: number
+            output_tokens?: number
+          }
+        | null
+        | undefined
+      > | null
+    }
+  ).iterations
+
+  if (!Array.isArray(iterations) || iterations.length === 0) {
+    return null
+  }
+
+  for (let i = iterations.length - 1; i >= 0; i--) {
+    const iteration = iterations[i]
+    if (
+      iteration &&
+      typeof iteration.input_tokens === 'number' &&
+      typeof iteration.output_tokens === 'number'
+    ) {
+      return {
+        input_tokens: iteration.input_tokens,
+        output_tokens: iteration.output_tokens,
+      }
+    }
+  }
+
+  return null
+}
+
+/**
  * Final context window size from the last API response's usage.iterations[-1].
  * Used for task_budget.remaining computation across compaction boundaries —
  * the server's budget countdown is context-based, so remaining decrements by
@@ -84,18 +130,9 @@ export function finalContextTokensFromLastResponse(
     const message = messages[i]
     const usage = message ? getTokenUsage(message) : undefined
     if (usage) {
-      // Stainless types don't include iterations yet — cast like advisor.ts:43
-      const iterations = (
-        usage as {
-          iterations?: Array<{
-            input_tokens: number
-            output_tokens: number
-          }> | null
-        }
-      ).iterations
-      if (iterations && iterations.length > 0) {
-        const last = iterations.at(-1)!
-        return last.input_tokens + last.output_tokens
+      const lastIteration = getLastUsageIterationWithTokens(usage)
+      if (lastIteration) {
+        return lastIteration.input_tokens + lastIteration.output_tokens
       }
       // No iterations → no server tool loop → top-level usage IS the final
       // window. Match the iterations path's formula (input + output, no cache)
