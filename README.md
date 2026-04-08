@@ -28,6 +28,8 @@ curl -fsSL https://raw.githubusercontent.com/nooldey/free-code/private/install.s
 
 Checks your system, installs Bun if needed, sparse-checkouts only runtime source files, builds with all experimental features enabled, and symlinks `free-code` on your PATH. On macOS, the source tree is kept under `~/.config/free-code`.
 
+To update an existing installation, run the same command again.
+
 Then run `free-code` and use the `/login` command to authenticate with your preferred model provider.
 
 ---

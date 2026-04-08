@@ -13,6 +13,7 @@ DIM='\033[2m'
 RESET='\033[0m'
 
 REPO="https://github.com/nooldey/free-code.git"
+REPO_BRANCH="private"
 APP_NAME="free-code"
 INSTALL_DIR=""
 LEGACY_INSTALL_DIR="$HOME/free-code"
@@ -119,7 +120,7 @@ clone_repo() {
     if [ -d "$INSTALL_DIR/.git" ]; then
       info "Syncing runtime source tree..."
       git -C "$INSTALL_DIR" sparse-checkout set --no-cone "${RUNTIME_PATHS[@]}" 2>/dev/null || true
-      git -C "$INSTALL_DIR" pull --ff-only origin main 2>/dev/null || {
+      git -C "$INSTALL_DIR" pull --ff-only origin "$REPO_BRANCH" 2>/dev/null || {
         warn "Pull failed, continuing with existing copy"
       }
       git -C "$INSTALL_DIR" sparse-checkout reapply 2>/dev/null || true
@@ -129,7 +130,7 @@ clone_repo() {
   else
     info "Cloning runtime source tree..."
     mkdir -p "$(dirname "$INSTALL_DIR")"
-    git clone --depth 1 --filter=blob:none --sparse "$REPO" "$INSTALL_DIR"
+    git clone --depth 1 --branch "$REPO_BRANCH" --single-branch --filter=blob:none --sparse "$REPO" "$INSTALL_DIR"
     git -C "$INSTALL_DIR" sparse-checkout set --no-cone "${RUNTIME_PATHS[@]}"
   fi
   if [ "$OS" = "macos" ] && [ -d "$LEGACY_INSTALL_DIR" ] && [ "$INSTALL_DIR" != "$LEGACY_INSTALL_DIR" ]; then
