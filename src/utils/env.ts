@@ -1,6 +1,6 @@
 import memoize from 'lodash-es/memoize.js'
 import { homedir } from 'os'
-import { join } from 'path'
+import { dirname, join, resolve } from 'path'
 import { fileSuffixForOauthConfig } from '../constants/oauth.js'
 import { isRunningWithBun } from './bundledMode.js'
 import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
@@ -23,6 +23,49 @@ export const getGlobalClaudeFile = memoize((): string => {
 
   const filename = `.claude${fileSuffixForOauthConfig()}.json`
   return join(process.env.CLAUDE_CONFIG_DIR || homedir(), filename)
+})
+
+/**
+ * 解析当前 freecode 运行时对应的安装根目录或源码根目录。
+ */
+export const getFreeCodeRootDir = memoize((): string => {
+  const fs = getFsImplementation()
+  const candidates = [process.argv[1], process.execPath]
+    .filter((path): path is string => typeof path === 'string' && path.length > 0)
+    .map(path => {
+      try {
+        return fs.realpathSync(path)
+      } catch {
+        return resolve(path)
+      }
+    })
+
+  for (const candidate of candidates) {
+    let current = dirname(candidate)
+    while (true) {
+      const hasPackageJson = fs.existsSync(join(current, 'package.json'))
+      const hasInstallScript = fs.existsSync(join(current, 'install.sh'))
+      const hasBuildScript = fs.existsSync(join(current, 'scripts', 'build.ts'))
+      if (hasPackageJson && (hasInstallScript || hasBuildScript)) {
+        return current
+      }
+
+      const parent = dirname(current)
+      if (parent === current) {
+        break
+      }
+      current = parent
+    }
+  }
+
+  return getClaudeConfigHomeDir()
+}, () => `${process.argv[1] ?? ''}:${process.execPath}`)
+
+/**
+ * 返回 freecode 安装目录下的专用配置文件路径。
+ */
+export const getFreeCodeSettingsFile = memoize((): string => {
+  return join(getFreeCodeRootDir(), 'freecode.json')
 })
 
 const hasInternetAccess = memoize(async (): Promise<boolean> => {

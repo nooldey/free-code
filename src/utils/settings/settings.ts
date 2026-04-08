@@ -12,6 +12,7 @@ import { getRemoteManagedSettingsSyncFromCache } from '../../services/remoteMana
 import { uniq } from '../array.js'
 import { logForDebugging } from '../debug.js'
 import { logForDiagnosticsNoPII } from '../diagLogs.js'
+import { getFreeCodeSettingsFile } from '../env.js'
 import { getClaudeConfigHomeDir, isEnvTruthy } from '../envUtils.js'
 import { getErrnoCode, isENOENT } from '../errors.js'
 import { writeFileSyncAndFlush_DEPRECATED } from '../file.js'
@@ -216,7 +217,11 @@ function parseSettingsFileUncached(path: string): {
     // rule doesn't cause the entire settings file to be rejected.
     const ruleWarnings = filterInvalidPermissionRules(data, path)
 
-    const result = SettingsSchema().safeParse(data)
+    const schema =
+      resolve(resolvedPath) === resolve(getFreeCodeSettingsFile())
+        ? SettingsSchema().strip()
+        : SettingsSchema()
+    const result = schema.safeParse(data)
 
     if (!result.success) {
       const errors = formatZodError(result.error, path)
@@ -239,7 +244,7 @@ function parseSettingsFileUncached(path: string): {
 export function getSettingsRootPathForSource(source: SettingSource): string {
   switch (source) {
     case 'userSettings':
-      return resolve(getClaudeConfigHomeDir())
+      return resolve(dirname(getFreeCodeSettingsFile()))
     case 'policySettings':
     case 'projectSettings':
     case 'localSettings': {
@@ -271,15 +276,31 @@ function getUserSettingsFilePath(): string {
   return 'settings.json'
 }
 
+/**
+ * 返回 Claude Code 兼容的共享用户 settings 文件路径。
+ */
+function getSharedUserSettingsFilePath(): string {
+  return join(getClaudeConfigHomeDir(), getUserSettingsFilePath())
+}
+
+/**
+ * 返回某个 settings source 需要参与读取合并的所有文件路径。
+ */
+export function getSettingsFilePathsForSource(source: SettingSource): string[] {
+  if (source === 'userSettings') {
+    return [...new Set([getSharedUserSettingsFilePath(), getFreeCodeSettingsFile()])]
+  }
+
+  const filePath = getSettingsFilePathForSource(source)
+  return filePath ? [filePath] : []
+}
+
 export function getSettingsFilePathForSource(
   source: SettingSource,
 ): string | undefined {
   switch (source) {
     case 'userSettings':
-      return join(
-        getSettingsRootPathForSource(source),
-        getUserSettingsFilePath(),
-      )
+      return getFreeCodeSettingsFile()
     case 'projectSettings':
     case 'localSettings': {
       return join(
@@ -344,10 +365,17 @@ function getSettingsForSourceUncached(
     return null
   }
 
-  const settingsFilePath = getSettingsFilePathForSource(source)
-  const { settings: fileSettings } = settingsFilePath
-    ? parseSettingsFile(settingsFilePath)
-    : { settings: null }
+  let fileSettings: SettingsJson | null = null
+  for (const filePath of getSettingsFilePathsForSource(source)) {
+    const { settings } = parseSettingsFile(filePath)
+    if (settings) {
+      fileSettings = mergeWith(
+        fileSettings || {},
+        settings,
+        settingsMergeCustomizer,
+      ) as SettingsJson
+    }
+  }
 
   // For flagSettings, merge in any inline settings set via the SDK
   if (source === 'flagSettings') {
@@ -437,7 +465,10 @@ export function updateSettingsForSource(
     // cache — mergeWith below mutates its target (including nested refs),
     // and mutating the cached object would leak unpersisted state if the
     // write fails before resetSettingsCache().
-    let existingSettings = getSettingsForSourceUncached(source)
+    let existingSettings =
+      source === 'userSettings'
+        ? parseSettingsFile(filePath).settings
+        : getSettingsForSourceUncached(source)
 
     // If validation failed, check if file exists with a JSON syntax error
     if (!existingSettings) {
@@ -738,32 +769,32 @@ function loadSettingsFromDisk(): SettingsWithErrors {
         continue
       }
 
-      const filePath = getSettingsFilePathForSource(source)
-      if (filePath) {
+      for (const filePath of getSettingsFilePathsForSource(source)) {
         const resolvedPath = resolve(filePath)
 
         // Skip if we've already loaded this file from another source
-        if (!seenFiles.has(resolvedPath)) {
-          seenFiles.add(resolvedPath)
+        if (seenFiles.has(resolvedPath)) {
+          continue
+        }
+        seenFiles.add(resolvedPath)
 
-          const { settings, errors } = parseSettingsFile(filePath)
+        const { settings, errors } = parseSettingsFile(filePath)
 
-          // Add unique errors (deduplication)
-          for (const error of errors) {
-            const errorKey = `${error.file}:${error.path}:${error.message}`
-            if (!seenErrors.has(errorKey)) {
-              seenErrors.add(errorKey)
-              allErrors.push(error)
-            }
+        // Add unique errors (deduplication)
+        for (const error of errors) {
+          const errorKey = `${error.file}:${error.path}:${error.message}`
+          if (!seenErrors.has(errorKey)) {
+            seenErrors.add(errorKey)
+            allErrors.push(error)
           }
+        }
 
-          if (settings) {
-            mergedSettings = mergeWith(
-              mergedSettings,
-              settings,
-              settingsMergeCustomizer,
-            )
-          }
+        if (settings) {
+          mergedSettings = mergeWith(
+            mergedSettings,
+            settings,
+            settingsMergeCustomizer,
+          )
         }
       }
 

@@ -9,40 +9,18 @@
  * - OpenAI Responses API（`/responses`）
  * - OpenAI 兼容 Chat Completions（`/chat/completions`）
  */
+import {
+  getConfiguredOpenCodeProtocol,
+  OPENCODE_ZEN_RESPONSE_MODELS,
+  type OpenCodePlan,
+  type OpenCodeProtocol,
+} from './opencode-models.js'
 
 const DEFAULT_OPENCODE_BASE_URL = 'https://opencode.ai/zen/v1'
 const DEFAULT_OPENCODE_GO_BASE_URL = 'https://opencode.ai/zen/go/v1'
 
 const OPENCODE_MODEL_PREFIX = 'opencode/'
 const OPENCODE_GO_MODEL_PREFIX = 'opencode-go/'
-
-export const OPENCODE_ZEN_RESPONSE_MODELS = [
-  'gpt-5.4',
-  'gpt-5.4-pro',
-  'gpt-5.4-mini',
-  'gpt-5.4-nano',
-  'gpt-5.3-codex',
-  'gpt-5.3-codex-spark',
-  'gpt-5.2',
-  'gpt-5.2-codex',
-  'gpt-5.1',
-  'gpt-5.1-codex',
-  'gpt-5.1-codex-max',
-  'gpt-5.1-codex-mini',
-  'gpt-5',
-  'gpt-5-codex',
-  'gpt-5-nano',
-] as const
-
-export const OPENCODE_GO_MODELS = [
-  'glm-5.1',
-  'glm-5',
-  'kimi-k2.5',
-  'mimo-v2-pro',
-  'mimo-v2-omni',
-  'minimax-m2.7',
-  'minimax-m2.5',
-] as const
 
 const OPENCODE_ZEN_ANTHROPIC_MODEL_SET: ReadonlySet<string> = new Set([
   'claude-opus-4-6',
@@ -82,9 +60,6 @@ const OPENCODE_GO_OA_COMPAT_MODEL_SET: ReadonlySet<string> = new Set([
   'mimo-v2-pro',
   'mimo-v2-omni',
 ])
-
-type OpenCodePlan = 'go' | 'zen'
-type OpenCodeProtocol = 'anthropic' | 'oa-compat' | 'responses'
 
 interface AnthropicContentBlock {
   type: string
@@ -203,6 +178,11 @@ function resolveOpenCodeRoute(model: string): {
     plan === 'go'
       ? process.env.OPENCODE_GO_BASE_URL || DEFAULT_OPENCODE_GO_BASE_URL
       : process.env.OPENCODE_BASE_URL || DEFAULT_OPENCODE_BASE_URL
+
+  const configuredProtocol = getConfiguredOpenCodeProtocol(plan, effectiveModel)
+  if (configuredProtocol) {
+    return { baseUrl, model: effectiveModel, plan, protocol: configuredProtocol }
+  }
 
   if (plan === 'go') {
     if (OPENCODE_GO_ANTHROPIC_MODEL_SET.has(effectiveNormalized)) {

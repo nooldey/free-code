@@ -376,6 +376,50 @@ export const SettingsSchema = lazySchema(() =>
         .string()
         .optional()
         .describe('Override the default model used by Claude Code'),
+      opencodeModels: z
+        .object({
+          zen: z
+            .array(
+              z.union([
+                z.string(),
+                z.object({
+                  id: z.string(),
+                  name: z.string().optional(),
+                  description: z.string().optional(),
+                  protocol: z
+                    .enum(['anthropic', 'oa-compat', 'responses'])
+                    .optional(),
+                }),
+              ]),
+            )
+            .optional()
+            .describe(
+              'Additional OpenCode Zen models to show in the picker. ' +
+                'Dynamic discovery only adds documented free Zen models; use this list to add non-free Zen models manually. ' +
+                'Each entry can be a raw model ID or an object with id/name/description/protocol.',
+            ),
+          go: z
+            .array(
+              z.union([
+                z.string(),
+                z.object({
+                  id: z.string(),
+                  name: z.string().optional(),
+                  description: z.string().optional(),
+                  protocol: z
+                    .enum(['anthropic', 'oa-compat', 'responses'])
+                    .optional(),
+                }),
+              ]),
+            )
+            .optional()
+            .describe(
+              'Additional OpenCode Go models to show in the picker. ' +
+                'Each entry can be a raw model ID or an object with id/name/description/protocol.',
+            ),
+        })
+        .optional()
+        .describe('OpenCode model catalog customizations for the model picker.'),
       // Enterprise allowlist of models
       availableModels: z
         .array(z.string())

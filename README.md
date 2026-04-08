@@ -30,12 +30,15 @@ Checks your system, installs Bun if needed, clones the repo, builds with all exp
 
 Then run `free-code` and use the `/login` command to authenticate with your preferred model provider.
 
+`freecode.json` lives at the free-code install root and acts as a free-code-specific user config overlay. It is intended for behavior-affecting personal settings such as provider env vars, not for legacy runtime state like project history or session counters.
+
 ---
 
 ## Table of Contents
 
 - [What is this](#what-is-this)
 - [Model Providers](#model-providers)
+- [OpenCode Config](OPENCODE.md)
 - [Quick Install](#quick-install)
 - [Requirements](#requirements)
 - [Build](#build)
@@ -108,6 +111,8 @@ free-code
 
 Route requests through OpenCode's hosted model gateway. This provider follows the project's existing Anthropic/OpenAI integration style while adding automatic routing between the Zen and Go plans.
 
+For a dedicated configuration guide, see [OPENCODE.md](OPENCODE.md).
+
 | Model Family | Example IDs | Route |
 |---|---|---|
 | Claude | `claude-sonnet-4-6`, `claude-opus-4-6` | OpenCode Zen `/messages` |
@@ -120,16 +125,14 @@ export OPENCODE_API_KEY="..."
 freecode
 ```
 
-Optional overrides:
+You can also place these provider env vars under the `env` field in `freecode.json`.
 
-| Variable | Purpose |
-|---|---|
-| `OPENCODE_API_KEY` | OpenCode API key |
-| `OPENCODE_BASE_URL` | Custom Zen endpoint (default: `https://opencode.ai/zen/v1`) |
-| `OPENCODE_GO_BASE_URL` | Custom Go endpoint (default: `https://opencode.ai/zen/go/v1`) |
-| `CLAUDE_CODE_USE_OPENCODE` | Enable OpenCode provider |
+OpenCode-specific details are documented in [OPENCODE.md](OPENCODE.md):
 
-When selecting Go plan models, prefer the `opencode-go/` prefix so the CLI can route overlapping model names to the Go endpoint explicitly.
+- `freecode.json` vs `.claude/settings*.json` 的配置分工
+- Zen 免费模型动态加载规则
+- Go 模型与手动补充模型的配置方式
+- `opencodeModels` 格式与默认模型配置示例
 
 ### AWS Bedrock
 

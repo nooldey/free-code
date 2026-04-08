@@ -1,6 +1,11 @@
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
 import { getInitialMainLoopModel } from '../../bootstrap/state.js'
-import { OPENCODE_GO_MODELS } from '../../services/api/opencode-fetch-adapter.js'
+import {
+  getOpenCodeGoModelCatalog,
+  getOpenCodeZenModelCatalog,
+  isOpenCodeZenFreeModel,
+  type OpenCodeModelDefinition,
+} from '../../services/api/opencode-models.js'
 import {
   isClaudeAISubscriber,
   isCodexSubscriber,
@@ -239,66 +244,55 @@ function getGpt54MiniOption(): ModelOption {
 }
 
 /**
- * 返回模型选择器里展示的 OpenCode Go 精选模型选项。
+ * 返回模型选择器里展示的 OpenCode Go 模型选项。
  */
 function getOpenCodeGoOptions(): ModelOption[] {
-  return [
-    {
-      value: 'opencode-go/kimi-k2.5',
-      label: 'Kimi K2.5',
-      description: 'OpenCode Go · Low-cost reasoning model',
-      descriptionForModel:
-        'OpenCode Go subscription model routed to kimi-k2.5',
-    },
-    {
-      value: 'opencode-go/glm-5.1',
-      label: 'GLM-5.1',
-      description: 'OpenCode Go · Strong coding and reasoning',
-      descriptionForModel:
-        'OpenCode Go subscription model routed to glm-5.1',
-    },
-    {
-      value: 'opencode-go/glm-5',
-      label: 'GLM-5',
-      description: 'OpenCode Go · Balanced open coding model',
-      descriptionForModel: 'OpenCode Go subscription model routed to glm-5',
-    },
-    {
-      value: 'opencode-go/minimax-m2.7',
-      label: 'MiniMax M2.7',
-      description: 'OpenCode Go · Fast Anthropic-compatible model',
-      descriptionForModel:
-        'OpenCode Go subscription model routed to minimax-m2.7',
-    },
-    {
-      value: 'opencode-go/minimax-m2.5',
-      label: 'MiniMax M2.5',
-      description: 'OpenCode Go · Cheapest high-volume option',
-      descriptionForModel:
-        'OpenCode Go subscription model routed to minimax-m2.5',
-    },
-    {
-      value: 'opencode-go/mimo-v2-pro',
-      label: 'MiMo V2 Pro',
-      description: 'OpenCode Go · OpenAI-compatible reasoning model',
-      descriptionForModel:
-        'OpenCode Go subscription model routed to mimo-v2-pro',
-    },
-    {
-      value: 'opencode-go/mimo-v2-omni',
-      label: 'MiMo V2 Omni',
-      description: 'OpenCode Go · Multimodal open coding model',
-      descriptionForModel:
-        'OpenCode Go subscription model routed to mimo-v2-omni',
-    },
-  ].filter(option =>
-    OPENCODE_GO_MODELS.includes(
-      option.value.replace(
-        'opencode-go/',
-        '',
-      ) as (typeof OPENCODE_GO_MODELS)[number],
-    ),
+  return getOpenCodeGoModelCatalog().map(model =>
+    buildOpenCodeOption('go', model),
   )
+}
+
+/**
+ * 返回模型选择器里展示的 OpenCode Zen 免费/手动模型选项。
+ */
+function getOpenCodeZenOptions(): ModelOption[] {
+  const curatedIds = new Set([
+    'claude-opus-4-6',
+    'claude-sonnet-4-6',
+    'claude-haiku-4-5',
+    'gpt-5.4',
+    'gpt-5.3-codex',
+    'gpt-5.4-mini',
+  ])
+
+  return getOpenCodeZenModelCatalog()
+    .filter(model => !curatedIds.has(model.id))
+    .map(model => buildOpenCodeOption('zen', model))
+}
+
+/**
+ * 把 OpenCode 目录项转换为模型选择器选项。
+ */
+function buildOpenCodeOption(
+  plan: 'go' | 'zen',
+  model: OpenCodeModelDefinition,
+): ModelOption {
+  const prefix = plan === 'go' ? 'opencode-go/' : 'opencode/'
+  const fallbackDescription =
+    plan === 'go'
+      ? 'OpenCode Go · User-configurable model'
+      : isOpenCodeZenFreeModel(model.id)
+        ? 'OpenCode Zen · Free model'
+        : 'OpenCode Zen · User-configurable model'
+
+  return {
+    value: `${prefix}${model.id}`,
+    label: model.name || getMarketingNameForModel(model.id) || model.id,
+    description: model.description || fallbackDescription,
+    descriptionForModel:
+      model.description ||
+      `${plan === 'go' ? 'OpenCode Go' : 'OpenCode Zen'} model routed to ${model.id}`,
+  }
 }
 
 function getMaxOpusOption(fastMode = false): ModelOption {
@@ -389,6 +383,7 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
       getGpt54Option(),
       getGpt53CodexOption(),
       getGpt54MiniOption(),
+      ...getOpenCodeZenOptions(),
       ...getOpenCodeGoOptions(),
     ]
   }
@@ -592,8 +587,13 @@ export function getModelOptions(fastMode = false): ModelOption[] {
     })
   }
 
+  const supplementalOptions =
+    getAPIProvider() === 'opencode'
+      ? []
+      : (getGlobalConfig().additionalModelOptionsCache ?? [])
+
   // Append additional model options fetched during bootstrap
-  for (const opt of getGlobalConfig().additionalModelOptionsCache ?? []) {
+  for (const opt of supplementalOptions) {
     if (!options.some(existing => existing.value === opt.value)) {
       options.push(opt)
     }
