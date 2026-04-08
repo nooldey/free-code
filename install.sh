@@ -170,11 +170,25 @@ clone_repo() {
     git clone --depth 1 --branch "$REPO_BRANCH" --single-branch --filter=blob:none --sparse "$REPO" "$INSTALL_DIR"
     git -C "$INSTALL_DIR" sparse-checkout set --no-cone "${RUNTIME_PATHS[@]}"
   fi
-  if [ -d "$LEGACY_INSTALL_DIR" ] && [ "$INSTALL_DIR" != "$LEGACY_INSTALL_DIR" ]; then
-    warn "Legacy directory detected at $LEGACY_INSTALL_DIR (not used by this installer)."
+  if [ "$INSTALL_DIR" != "$LEGACY_INSTALL_DIR" ] && [ -d "$LEGACY_INSTALL_DIR" ]; then
+    if [ -L "$LEGACY_INSTALL_DIR" ]; then
+      warn "Legacy path is a symlink, skipped: $LEGACY_INSTALL_DIR"
+    elif [ "$LEGACY_INSTALL_DIR" = "$HOME/free-code" ]; then
+      rm -rf -- "$LEGACY_INSTALL_DIR"
+      ok "Removed legacy directory: $LEGACY_INSTALL_DIR"
+    else
+      warn "Legacy directory is not in whitelist, skipped: $LEGACY_INSTALL_DIR"
+    fi
   fi
-  if [ -d "$LEGACY_CONFIG_INSTALL_DIR" ] && [ "$INSTALL_DIR" != "$LEGACY_CONFIG_INSTALL_DIR" ]; then
-    warn "Legacy directory detected at $LEGACY_CONFIG_INSTALL_DIR (not used by this installer)."
+  if [ "$INSTALL_DIR" != "$LEGACY_CONFIG_INSTALL_DIR" ] && [ -d "$LEGACY_CONFIG_INSTALL_DIR" ]; then
+    if [ -L "$LEGACY_CONFIG_INSTALL_DIR" ]; then
+      warn "Legacy path is a symlink, skipped: $LEGACY_CONFIG_INSTALL_DIR"
+    elif [ "$LEGACY_CONFIG_INSTALL_DIR" = "$HOME/.config/free-code" ]; then
+      rm -rf -- "$LEGACY_CONFIG_INSTALL_DIR"
+      ok "Removed legacy directory: $LEGACY_CONFIG_INSTALL_DIR"
+    else
+      warn "Legacy directory is not in whitelist, skipped: $LEGACY_CONFIG_INSTALL_DIR"
+    fi
   fi
   ok "Source: $INSTALL_DIR"
 }
@@ -203,6 +217,8 @@ link_binary() {
   if [ -L "$link_dir/free-code" ]; then
     rm -f -- "$link_dir/free-code"
     ok "Removed legacy symlink: $link_dir/free-code"
+  elif [ -e "$link_dir/free-code" ]; then
+    warn "Legacy command path exists but is not a symlink, skipped: $link_dir/free-code"
   fi
 
   if ! echo "$PATH" | tr ':' '\n' | grep -qx "$link_dir"; then
