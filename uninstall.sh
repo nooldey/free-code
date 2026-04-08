@@ -13,7 +13,9 @@ BOLD='\033[1m'
 DIM='\033[2m'
 RESET='\033[0m'
 
-INSTALL_DIR="$HOME/free-code"
+APP_NAME="free-code"
+INSTALL_DIR=""
+LEGACY_INSTALL_DIR="$HOME/free-code"
 LINK_DIR="$HOME/.local/bin"
 LINK_PATH="$LINK_DIR/free-code"
 DRY_RUN=0
@@ -22,6 +24,27 @@ info()  { printf "${CYAN}[*]${RESET} %s\n" "$*"; }
 ok()    { printf "${GREEN}[+]${RESET} %s\n" "$*"; }
 warn()  { printf "${YELLOW}[!]${RESET} %s\n" "$*"; }
 fail()  { printf "${RED}[x]${RESET} %s\n" "$*"; exit 1; }
+
+detect_install_dir() {
+  case "$(uname -s)" in
+    Darwin)
+      OS="macos"
+      INSTALL_DIR="$HOME/.config/$APP_NAME"
+      ;;
+    Linux)
+      OS="linux"
+      INSTALL_DIR="$HOME/$APP_NAME"
+      ;;
+    *)
+      fail "Unsupported OS: $(uname -s). macOS or Linux required."
+      ;;
+  esac
+
+  if [ "$OS" = "macos" ] && [ ! -d "$INSTALL_DIR" ] && [ -d "$LEGACY_INSTALL_DIR" ]; then
+    INSTALL_DIR="$LEGACY_INSTALL_DIR"
+    warn "检测到旧版安装目录，当前将按旧路径卸载: $INSTALL_DIR"
+  fi
+}
 
 confirm_uninstall() {
   if [ "$DRY_RUN" -eq 1 ]; then
@@ -97,8 +120,10 @@ remove_install_dir() {
     if [ -z "$INSTALL_DIR" ] || [ "$INSTALL_DIR" = "/" ]; then
       fail "检测到危险安装目录，拒绝删除。"
     fi
-    if [ "$INSTALL_DIR" != "$HOME/free-code" ]; then
-      fail "安装目录不符合白名单规则（仅允许 \$HOME/free-code），拒绝删除。"
+    local allowed_primary="$HOME/$APP_NAME"
+    local allowed_macos="$HOME/.config/$APP_NAME"
+    if [ "$INSTALL_DIR" != "$allowed_primary" ] && [ "$INSTALL_DIR" != "$allowed_macos" ] && [ "$INSTALL_DIR" != "$LEGACY_INSTALL_DIR" ]; then
+      fail "安装目录不符合白名单规则（仅允许 \$HOME/$APP_NAME、\$HOME/.config/$APP_NAME 或旧版目录），拒绝删除。"
     fi
     if [ -L "$INSTALL_DIR" ]; then
       fail "安装目录是符号链接，拒绝递归删除。"
@@ -153,6 +178,7 @@ header
 info "Starting uninstallation..."
 echo ""
 
+detect_install_dir
 confirm_uninstall
 echo ""
 

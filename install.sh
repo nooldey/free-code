@@ -13,8 +13,18 @@ DIM='\033[2m'
 RESET='\033[0m'
 
 REPO="https://github.com/nooldey/free-code.git"
-INSTALL_DIR="$HOME/free-code"
+APP_NAME="free-code"
+INSTALL_DIR=""
+LEGACY_INSTALL_DIR="$HOME/free-code"
 BUN_MIN_VERSION="1.3.11"
+RUNTIME_PATHS=(
+  '/src/'
+  '/scripts/'
+  '/package.json'
+  '/bun.lock'
+  '/tsconfig.json'
+  '/env.d.ts'
+)
 
 info()  { printf "${CYAN}[*]${RESET} %s\n" "$*"; }
 ok()    { printf "${GREEN}[+]${RESET} %s\n" "$*"; }
@@ -43,11 +53,18 @@ ART
 
 check_os() {
   case "$(uname -s)" in
-    Darwin) OS="macos" ;;
-    Linux)  OS="linux" ;;
+    Darwin)
+      OS="macos"
+      INSTALL_DIR="$HOME/.config/$APP_NAME"
+      ;;
+    Linux)
+      OS="linux"
+      INSTALL_DIR="$HOME/$APP_NAME"
+      ;;
     *)      fail "Unsupported OS: $(uname -s). macOS or Linux required." ;;
   esac
   ok "OS: $(uname -s) $(uname -m)"
+  ok "Install dir: $INSTALL_DIR"
 }
 
 check_git() {
@@ -100,14 +117,23 @@ clone_repo() {
   if [ -d "$INSTALL_DIR" ]; then
     warn "$INSTALL_DIR already exists"
     if [ -d "$INSTALL_DIR/.git" ]; then
-      info "Pulling latest changes..."
+      info "Syncing runtime source tree..."
+      git -C "$INSTALL_DIR" sparse-checkout set --no-cone "${RUNTIME_PATHS[@]}" 2>/dev/null || true
       git -C "$INSTALL_DIR" pull --ff-only origin main 2>/dev/null || {
         warn "Pull failed, continuing with existing copy"
       }
+      git -C "$INSTALL_DIR" sparse-checkout reapply 2>/dev/null || true
+    else
+      fail "$INSTALL_DIR exists but is not a git repository. Please move or remove it manually."
     fi
   else
-    info "Cloning repository..."
-    git clone --depth 1 "$REPO" "$INSTALL_DIR"
+    info "Cloning runtime source tree..."
+    mkdir -p "$(dirname "$INSTALL_DIR")"
+    git clone --depth 1 --filter=blob:none --sparse "$REPO" "$INSTALL_DIR"
+    git -C "$INSTALL_DIR" sparse-checkout set --no-cone "${RUNTIME_PATHS[@]}"
+  fi
+  if [ "$OS" = "macos" ] && [ -d "$LEGACY_INSTALL_DIR" ] && [ "$INSTALL_DIR" != "$LEGACY_INSTALL_DIR" ]; then
+    warn "Legacy directory detected at $LEGACY_INSTALL_DIR (not used by this installer)."
   fi
   ok "Source: $INSTALL_DIR"
 }
