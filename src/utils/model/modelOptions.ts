@@ -1,5 +1,6 @@
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
 import { getInitialMainLoopModel } from '../../bootstrap/state.js'
+import { OPENCODE_GO_MODELS } from '../../services/api/opencode-fetch-adapter.js'
 import {
   isClaudeAISubscriber,
   isCodexSubscriber,
@@ -237,6 +238,69 @@ function getGpt54MiniOption(): ModelOption {
   }
 }
 
+/**
+ * 返回模型选择器里展示的 OpenCode Go 精选模型选项。
+ */
+function getOpenCodeGoOptions(): ModelOption[] {
+  return [
+    {
+      value: 'opencode-go/kimi-k2.5',
+      label: 'Kimi K2.5',
+      description: 'OpenCode Go · Low-cost reasoning model',
+      descriptionForModel:
+        'OpenCode Go subscription model routed to kimi-k2.5',
+    },
+    {
+      value: 'opencode-go/glm-5.1',
+      label: 'GLM-5.1',
+      description: 'OpenCode Go · Strong coding and reasoning',
+      descriptionForModel:
+        'OpenCode Go subscription model routed to glm-5.1',
+    },
+    {
+      value: 'opencode-go/glm-5',
+      label: 'GLM-5',
+      description: 'OpenCode Go · Balanced open coding model',
+      descriptionForModel: 'OpenCode Go subscription model routed to glm-5',
+    },
+    {
+      value: 'opencode-go/minimax-m2.7',
+      label: 'MiniMax M2.7',
+      description: 'OpenCode Go · Fast Anthropic-compatible model',
+      descriptionForModel:
+        'OpenCode Go subscription model routed to minimax-m2.7',
+    },
+    {
+      value: 'opencode-go/minimax-m2.5',
+      label: 'MiniMax M2.5',
+      description: 'OpenCode Go · Cheapest high-volume option',
+      descriptionForModel:
+        'OpenCode Go subscription model routed to minimax-m2.5',
+    },
+    {
+      value: 'opencode-go/mimo-v2-pro',
+      label: 'MiMo V2 Pro',
+      description: 'OpenCode Go · OpenAI-compatible reasoning model',
+      descriptionForModel:
+        'OpenCode Go subscription model routed to mimo-v2-pro',
+    },
+    {
+      value: 'opencode-go/mimo-v2-omni',
+      label: 'MiMo V2 Omni',
+      description: 'OpenCode Go · Multimodal open coding model',
+      descriptionForModel:
+        'OpenCode Go subscription model routed to mimo-v2-omni',
+    },
+  ].filter(option =>
+    OPENCODE_GO_MODELS.includes(
+      option.value.replace(
+        'opencode-go/',
+        '',
+      ) as (typeof OPENCODE_GO_MODELS)[number],
+    ),
+  )
+}
+
 function getMaxOpusOption(fastMode = false): ModelOption {
   return {
     value: 'opus',
@@ -313,6 +377,19 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
       getSonnet46Option(),
       getSonnet46_1MOption(),
       getHaiku45Option(),
+    ]
+  }
+
+  if (getAPIProvider() === 'opencode') {
+    return [
+      getDefaultOptionForUser(fastMode),
+      getSonnet46Option(),
+      getOpus46Option(fastMode),
+      getHaiku45Option(),
+      getGpt54Option(),
+      getGpt53CodexOption(),
+      getGpt54MiniOption(),
+      ...getOpenCodeGoOptions(),
     ]
   }
 

@@ -77,7 +77,7 @@ Claude Code ships with 88 feature flags gated behind `bun:bundle` compile-time s
 
 ## Model Providers
 
-free-code supports **five API providers** out of the box. Set the corresponding environment variable to switch providers -- no code changes needed.
+free-code supports **six API providers** out of the box. Set the corresponding environment variable to switch providers -- no code changes needed.
 
 ### Anthropic (Direct API) -- Default
 
@@ -103,6 +103,33 @@ Use OpenAI's Codex models for code generation. Requires a Codex subscription.
 export CLAUDE_CODE_USE_OPENAI=1
 free-code
 ```
+
+### OpenCode Zen / Go
+
+Route requests through OpenCode's hosted model gateway. This provider follows the project's existing Anthropic/OpenAI integration style while adding automatic routing between the Zen and Go plans.
+
+| Model Family | Example IDs | Route |
+|---|---|---|
+| Claude | `claude-sonnet-4-6`, `claude-opus-4-6` | OpenCode Zen `/messages` |
+| GPT / Codex | `gpt-5.4`, `gpt-5.3-codex` | OpenCode Zen `/responses` |
+| Go plan models | `opencode-go/kimi-k2.5`, `opencode-go/glm-5.1`, `opencode-go/mimo-v2-pro` | OpenCode Go |
+
+```bash
+export CLAUDE_CODE_USE_OPENCODE=1
+export OPENCODE_API_KEY="..."
+freecode
+```
+
+Optional overrides:
+
+| Variable | Purpose |
+|---|---|
+| `OPENCODE_API_KEY` | OpenCode API key |
+| `OPENCODE_BASE_URL` | Custom Zen endpoint (default: `https://opencode.ai/zen/v1`) |
+| `OPENCODE_GO_BASE_URL` | Custom Go endpoint (default: `https://opencode.ai/zen/go/v1`) |
+| `CLAUDE_CODE_USE_OPENCODE` | Enable OpenCode provider |
+
+When selecting Go plan models, prefer the `opencode-go/` prefix so the CLI can route overlapping model names to the Go endpoint explicitly.
 
 ### AWS Bedrock
 
@@ -153,6 +180,7 @@ Supports custom deployment IDs as model names.
 |---|---|---|
 | Anthropic (default) | -- | `ANTHROPIC_API_KEY` or OAuth |
 | OpenAI Codex | `CLAUDE_CODE_USE_OPENAI=1` | OAuth via OpenAI |
+| OpenCode Zen / Go | `CLAUDE_CODE_USE_OPENCODE=1` | `OPENCODE_API_KEY` |
 | AWS Bedrock | `CLAUDE_CODE_USE_BEDROCK=1` | AWS credentials |
 | Google Vertex AI | `CLAUDE_CODE_USE_VERTEX=1` | `gcloud` ADC |
 | Anthropic Foundry | `CLAUDE_CODE_USE_FOUNDRY=1` | `ANTHROPIC_FOUNDRY_API_KEY` |
@@ -236,6 +264,11 @@ bun run dev
 | `ANTHROPIC_DEFAULT_HAIKU_MODEL` | Custom Haiku model ID |
 | `CLAUDE_CODE_OAUTH_TOKEN` | OAuth token via env |
 | `CLAUDE_CODE_API_KEY_HELPER_TTL_MS` | API key helper cache TTL |
+| `CLAUDE_CODE_USE_OPENAI` | Enable OpenAI Codex provider |
+| `CLAUDE_CODE_USE_OPENCODE` | Enable OpenCode provider |
+| `OPENCODE_API_KEY` | OpenCode API key |
+| `OPENCODE_BASE_URL` | Custom OpenCode Zen endpoint |
+| `OPENCODE_GO_BASE_URL` | Custom OpenCode Go endpoint |
 
 ---
 
@@ -324,7 +357,7 @@ src/
 | **Schema Validation** | Zod v4 |
 | **Code Search** | ripgrep (bundled) |
 | **Protocols** | MCP, LSP |
-| **APIs** | Anthropic Messages, OpenAI Codex, AWS Bedrock, Google Vertex AI |
+| **APIs** | Anthropic Messages, OpenAI Codex, OpenCode Zen/Go, AWS Bedrock, Google Vertex AI |
 
 ---
 
