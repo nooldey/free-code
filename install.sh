@@ -18,6 +18,7 @@ APP_NAME="free-code"
 INSTALL_DIR=""
 LEGACY_INSTALL_DIR="$HOME/free-code"
 BUN_MIN_VERSION="1.3.11"
+AUTO_INSTALL_BUN="${FREE_CODE_AUTO_INSTALL_BUN:-0}"
 RUNTIME_PATHS=(
   '/src/'
   '/scripts/'
@@ -83,6 +84,9 @@ version_gte() {
 }
 
 check_bun() {
+  local should_install=0
+  local bun_reason=""
+
   if command -v bun &>/dev/null; then
     local ver
     ver="$(bun --version 2>/dev/null || echo "0.0.0")"
@@ -90,11 +94,43 @@ check_bun() {
       ok "bun: v${ver}"
       return
     fi
-    warn "bun v${ver} found but v${BUN_MIN_VERSION}+ required. Upgrading..."
+    warn "bun v${ver} found but v${BUN_MIN_VERSION}+ required."
+    should_install=1
+    bun_reason="upgrade"
   else
-    info "bun not found. Installing..."
+    warn "bun not found."
+    should_install=1
+    bun_reason="install"
   fi
-  install_bun
+
+  if [ "$should_install" -ne 1 ]; then
+    return
+  fi
+
+  if [ "$AUTO_INSTALL_BUN" = "1" ]; then
+    info "FREE_CODE_AUTO_INSTALL_BUN=1, continue without prompt."
+    install_bun
+    return
+  fi
+
+  if [ ! -r /dev/tty ]; then
+    fail "需要用户确认才能${bun_reason} bun，但当前无可用终端输入。
+    你可以先手动安装 bun（>=${BUN_MIN_VERSION}），或显式设置：
+      FREE_CODE_AUTO_INSTALL_BUN=1"
+  fi
+
+  echo "" > /dev/tty
+  printf "${YELLOW}${BOLD}  检测到需要${bun_reason} bun，是否继续？ [y/N] ${RESET}" > /dev/tty
+  local bun_confirm
+  read -r bun_confirm < /dev/tty || bun_confirm=""
+  case "$bun_confirm" in
+    y|Y|yes|YES)
+      install_bun
+      ;;
+    *)
+      fail "已取消 bun ${bun_reason}。请先手动安装 bun（>=${BUN_MIN_VERSION}）后重试。"
+      ;;
+  esac
 }
 
 install_bun() {

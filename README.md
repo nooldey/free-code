@@ -30,6 +30,8 @@ Checks your system, installs Bun if needed, sparse-checkouts only runtime source
 
 To update an existing installation, run the same command again.
 
+If Bun is missing (or below the minimum version), the installer will ask for confirmation before installing/upgrading Bun. For unattended installs, set `FREE_CODE_AUTO_INSTALL_BUN=1`.
+
 Then run `free-code` and use the `/login` command to authenticate with your preferred model provider.
 
 ---
