@@ -26,13 +26,13 @@
 curl -fsSL https://raw.githubusercontent.com/nooldey/free-code/private/install.sh | bash
 ```
 
-Checks your system, installs Bun if needed, sparse-checkouts only runtime source files, builds with all experimental features enabled, and symlinks `free-code` on your PATH. On macOS, the source tree is kept under `~/.config/free-code`.
+Checks your system, installs Bun if needed, sparse-checkouts only runtime source files, builds with all experimental features enabled, and symlinks `freecode` on your PATH. On macOS, the source tree is kept under `~/.config/freecode`.
 
 To update an existing installation, run the same command again.
 
 If Bun is missing (or below the minimum version), the installer will ask for confirmation before installing/upgrading Bun. For unattended installs, set `FREE_CODE_AUTO_INSTALL_BUN=1`.
 
-Then run `free-code` and use the `/login` command to authenticate with your preferred model provider.
+Then run `freecode` and use the `/login` command to authenticate with your preferred model provider.
 
 ---
 
@@ -105,7 +105,7 @@ Use OpenAI's Codex models for code generation. Requires a Codex subscription.
 
 ```bash
 export CLAUDE_CODE_USE_OPENAI=1
-free-code
+freecode
 ```
 
 ### AWS Bedrock
@@ -115,7 +115,7 @@ Route requests through your AWS account via Amazon Bedrock.
 ```bash
 export CLAUDE_CODE_USE_BEDROCK=1
 export AWS_REGION="us-east-1"   # or AWS_DEFAULT_REGION
-free-code
+freecode
 ```
 
 Uses your standard AWS credentials (environment variables, `~/.aws/config`, or IAM role). Models are mapped to Bedrock ARN format automatically (e.g., `us.anthropic.claude-opus-4-6-v1`).
@@ -134,7 +134,7 @@ Route requests through your GCP project via Vertex AI.
 
 ```bash
 export CLAUDE_CODE_USE_VERTEX=1
-free-code
+freecode
 ```
 
 Uses Google Cloud Application Default Credentials (`gcloud auth application-default login`). Models are mapped to Vertex format automatically (e.g., `claude-opus-4-6@latest`).
@@ -146,7 +146,7 @@ Use Anthropic Foundry for dedicated deployments.
 ```bash
 export CLAUDE_CODE_USE_FOUNDRY=1
 export ANTHROPIC_FOUNDRY_API_KEY="..."
-free-code
+freecode
 ```
 
 Supports custom deployment IDs as model names.

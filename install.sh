@@ -14,9 +14,10 @@ RESET='\033[0m'
 
 REPO="https://github.com/nooldey/free-code.git"
 REPO_BRANCH="private"
-APP_NAME="free-code"
+APP_NAME="freecode"
 INSTALL_DIR=""
 LEGACY_INSTALL_DIR="$HOME/free-code"
+LEGACY_CONFIG_INSTALL_DIR="$HOME/.config/free-code"
 BUN_MIN_VERSION="1.3.11"
 AUTO_INSTALL_BUN="${FREE_CODE_AUTO_INSTALL_BUN:-0}"
 RUNTIME_PATHS=(
@@ -169,8 +170,11 @@ clone_repo() {
     git clone --depth 1 --branch "$REPO_BRANCH" --single-branch --filter=blob:none --sparse "$REPO" "$INSTALL_DIR"
     git -C "$INSTALL_DIR" sparse-checkout set --no-cone "${RUNTIME_PATHS[@]}"
   fi
-  if [ "$OS" = "macos" ] && [ -d "$LEGACY_INSTALL_DIR" ] && [ "$INSTALL_DIR" != "$LEGACY_INSTALL_DIR" ]; then
+  if [ -d "$LEGACY_INSTALL_DIR" ] && [ "$INSTALL_DIR" != "$LEGACY_INSTALL_DIR" ]; then
     warn "Legacy directory detected at $LEGACY_INSTALL_DIR (not used by this installer)."
+  fi
+  if [ -d "$LEGACY_CONFIG_INSTALL_DIR" ] && [ "$INSTALL_DIR" != "$LEGACY_CONFIG_INSTALL_DIR" ]; then
+    warn "Legacy directory detected at $LEGACY_CONFIG_INSTALL_DIR (not used by this installer)."
   fi
   ok "Source: $INSTALL_DIR"
 }
@@ -193,8 +197,13 @@ link_binary() {
   local link_dir="$HOME/.local/bin"
   mkdir -p "$link_dir"
 
-  ln -sf "$INSTALL_DIR/cli-dev" "$link_dir/free-code"
-  ok "Symlinked: $link_dir/free-code"
+  ln -sf "$INSTALL_DIR/cli-dev" "$link_dir/freecode"
+  ok "Symlinked: $link_dir/freecode"
+
+  if [ -L "$link_dir/free-code" ]; then
+    rm -f -- "$link_dir/free-code"
+    ok "Removed legacy symlink: $link_dir/free-code"
+  fi
 
   if ! echo "$PATH" | tr ':' '\n' | grep -qx "$link_dir"; then
     warn "$link_dir is not on your PATH"
@@ -227,16 +236,16 @@ echo ""
 printf "${GREEN}${BOLD}  Installation complete!${RESET}\n"
 echo ""
 printf "  ${BOLD}Run it:${RESET}\n"
-printf "    ${CYAN}free-code${RESET}                          # interactive REPL\n"
-printf "    ${CYAN}free-code -p \"your prompt\"${RESET}          # one-shot mode\n"
+printf "    ${CYAN}freecode${RESET}                           # interactive REPL\n"
+printf "    ${CYAN}freecode -p \"your prompt\"${RESET}           # one-shot mode\n"
 echo ""
 printf "  ${BOLD}Set your API key:${RESET}\n"
 printf "    ${CYAN}export ANTHROPIC_API_KEY=\"sk-ant-...\"${RESET}\n"
 echo ""
 printf "  ${BOLD}Or log in with Claude.ai:${RESET}\n"
-printf "    ${CYAN}free-code /login${RESET}\n"
+printf "    ${CYAN}freecode /login${RESET}\n"
 echo ""
 printf "  ${DIM}Source: $INSTALL_DIR${RESET}\n"
 printf "  ${DIM}Binary: $INSTALL_DIR/cli-dev${RESET}\n"
-printf "  ${DIM}Link:   ~/.local/bin/free-code${RESET}\n"
+printf "  ${DIM}Link:   ~/.local/bin/freecode${RESET}\n"
 echo ""
