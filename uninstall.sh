@@ -15,11 +15,8 @@ RESET='\033[0m'
 
 APP_NAME="freecode"
 INSTALL_DIR=""
-LEGACY_INSTALL_DIR="$HOME/free-code"
-LEGACY_CONFIG_INSTALL_DIR="$HOME/.config/free-code"
 LINK_DIR="$HOME/.local/bin"
 LINK_PATH="$LINK_DIR/freecode"
-LEGACY_LINK_PATH="$LINK_DIR/free-code"
 DRY_RUN=0
 
 info()  { printf "${CYAN}[*]${RESET} %s\n" "$*"; }
@@ -42,15 +39,6 @@ detect_install_dir() {
       ;;
   esac
 
-  if [ ! -d "$INSTALL_DIR" ]; then
-    if [ "$OS" = "macos" ] && [ -d "$LEGACY_CONFIG_INSTALL_DIR" ]; then
-      INSTALL_DIR="$LEGACY_CONFIG_INSTALL_DIR"
-      warn "检测到旧版安装目录，当前将按旧路径卸载: $INSTALL_DIR"
-    elif [ -d "$LEGACY_INSTALL_DIR" ]; then
-      INSTALL_DIR="$LEGACY_INSTALL_DIR"
-      warn "检测到旧版安装目录，当前将按旧路径卸载: $INSTALL_DIR"
-    fi
-  fi
 }
 
 confirm_uninstall() {
@@ -61,7 +49,6 @@ confirm_uninstall() {
   printf "${YELLOW}${BOLD}  WARNING: This will permanently delete:${RESET}\n"
   printf "  ${YELLOW}- %s${RESET}\n" "$INSTALL_DIR"
   printf "  ${YELLOW}- %s${RESET}\n" "$LINK_PATH"
-  printf "  ${YELLOW}- %s${RESET}\n" "$LEGACY_LINK_PATH"
   echo ""
   printf "${BOLD}  Are you sure you want to continue? [y/N] ${RESET}"
   read -r answer
@@ -90,7 +77,7 @@ header() {
 
 ART
   printf "${RESET}"
-  printf "${DIM}  Uninstalling free-code${RESET}\n"
+  printf "${DIM}  Uninstalling freecode${RESET}\n"
   echo ""
 }
 
@@ -108,17 +95,6 @@ remove_symlink() {
     fi
   else
     warn "Symlink not found: $LINK_PATH"
-  fi
-
-  if [ -L "$LEGACY_LINK_PATH" ]; then
-    if [ "$DRY_RUN" -eq 1 ]; then
-      info "[dry-run] 将删除旧版软链接: $LEGACY_LINK_PATH"
-    else
-      rm -f -- "$LEGACY_LINK_PATH"
-      ok "Removed legacy symlink: $LEGACY_LINK_PATH"
-    fi
-  else
-    warn "Legacy symlink not found: $LEGACY_LINK_PATH"
   fi
 }
 
@@ -141,8 +117,8 @@ remove_install_dir() {
     fi
     local allowed_primary="$HOME/$APP_NAME"
     local allowed_macos="$HOME/.config/$APP_NAME"
-    if [ "$INSTALL_DIR" != "$allowed_primary" ] && [ "$INSTALL_DIR" != "$allowed_macos" ] && [ "$INSTALL_DIR" != "$LEGACY_INSTALL_DIR" ] && [ "$INSTALL_DIR" != "$LEGACY_CONFIG_INSTALL_DIR" ]; then
-      fail "安装目录不符合白名单规则（仅允许 \$HOME/$APP_NAME、\$HOME/.config/$APP_NAME 或旧版目录），拒绝删除。"
+    if [ "$INSTALL_DIR" != "$allowed_primary" ] && [ "$INSTALL_DIR" != "$allowed_macos" ]; then
+      fail "安装目录不符合白名单规则（仅允许 \$HOME/$APP_NAME 或 \$HOME/.config/$APP_NAME），拒绝删除。"
     fi
     if [ -L "$INSTALL_DIR" ]; then
       fail "安装目录是符号链接，拒绝递归删除。"
