@@ -43,7 +43,7 @@ freecode 现在有两类配置：
 1. freecode 自己的全局个性化配置覆盖层
 
 - 文件位置：安装目录下的 `freecode.json`
-- 安装脚本默认目录下通常是 `~/free-code/freecode.json`
+- 当前安装脚本默认目录下通常是 `~/.config/freecode/freecode.json`
 - 这个文件只应该放会影响 freecode 行为的个性化配置
 - 例如 `env`、模型相关偏好等
 - 不应该承接 `projects`、history、统计计数、缓存一类运行态数据
